@@ -1,0 +1,42 @@
+# GOTW weekly leaderboard archive.
+#
+# The leaderboard window itself is no longer managed by a job: both
+# ruby_sweeps._logs.lems_gotw_ongoing_leaderboard (see ../src/gotw_view_template.sql)
+# and lems2.0/server.js compute the current 7-day period independently from a
+# shared fixed anchor, so there is nothing to generate, review, or deploy each
+# week anymore. This job only archives a snapshot of the leaderboard to Google
+# Sheets for record-keeping -- read-only, non-destructive, so no review gate.
+#
+# Scheduled for 15:00 NZT Monday: the period boundary itself is a fixed
+# 02:00 UTC Monday, which lands at 14:00-15:00 NZT depending on NZ
+# daylight saving -- 15:00 NZT is comfortably after that boundary in both
+# seasons, so results are always final by the time this runs.
+
+resources:
+  jobs:
+    gotw_weekly_export:
+      name: gotw-weekly-export
+
+      schedule:
+        quartz_cron_expression: "0 0 15 ? * MON"
+        timezone_id: "Pacific/Auckland"
+        pause_status: UNPAUSED
+
+      email_notifications:
+        on_failure:
+          - nina.zhou@rubyplaynetwork.com
+
+      tasks:
+        - task_key: export_and_archive
+          max_retries: 2
+          notebook_task:
+            notebook_path: ../src/gotw_weekly_export/export_and_archive.py
+          environment_key: default
+
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "4"
+            dependencies:
+              - gspread
+              - google-auth

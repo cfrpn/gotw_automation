@@ -1,0 +1,30 @@
+# Declarative Automation Bundle for the GOTW (Game of the Week) weekly automation.
+# See https://docs.databricks.com/dev-tools/bundles/index.html for documentation.
+#
+# Replaces the manual Tuesday process (export leaderboard -> paste into Sheet ->
+# hand-edit SQL view -> hand-edit Railway variables + deploy) with two chained
+# Databricks Jobs. See the design doc linked in README.md for full background.
+bundle:
+  name: gotw_automation
+  uuid: 21b0197f-cf7e-4ac9-8ab8-1b082b7bfad3
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    # mode: development pauses schedules/triggers automatically and prefixes
+    # resource names with '[dev <user>]', so deploying here never touches the
+    # real Tuesday schedule. Use this target for every validation run before prod.
+    mode: development
+    default: true
+    workspace:
+      host: https://dbc-1a1b8180-343f.cloud.databricks.com
+  prod:
+    mode: production
+    workspace:
+      host: https://dbc-1a1b8180-343f.cloud.databricks.com
+      root_path: /Workspace/Users/nina.zhou@rubyplaynetwork.com/.bundle/${bundle.name}/${bundle.target}
+    permissions:
+      - user_name: nina.zhou@rubyplaynetwork.com
+        level: CAN_MANAGE
