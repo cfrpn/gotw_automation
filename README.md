@@ -16,18 +16,21 @@ formula (kept identical on both sides).
 What's left is much smaller than the original design: a single Databricks Job
 that archives the just-concluded week's leaderboard to Google Sheets, for
 record-keeping. It's read-only and non-destructive, so it needs no human
-review step. It runs Monday 15:00 NZT -- shortly after the period boundary
-(a fixed 02:00 UTC Monday, i.e. 14:00-15:00 NZT depending on daylight saving)
--- and queries the underlying bets/users tables directly for that
-just-concluded window rather than reading the live view, since by run time
-the view has already rolled over to the new week.
+review step. It runs Monday 16:00 NZT, safely after the period boundary in
+both NZ daylight-saving states (the boundary is a fixed 02:00 UTC Monday,
+which lands at 14:00 NZT under NZST but 15:00 NZT under NZDT -- an earlier
+draft used 15:00 NZT, which collapses to zero margin during NZDT, so don't
+move this earlier without re-checking both states) -- and queries the
+underlying bets/users tables directly for that just-concluded window rather
+than reading the live view, since by run time the view has already rolled
+over to the new week.
 
 Design doc (background/history; the Railway/control-table/review-gate parts
 are superseded by the above): [GOTW Weekly Automation Design](https://docs.google.com/document/d/1zeJvdvnk9XJ5lrsUqyprPD7TvjeBUpekmw0B5GWixFk)
 
 ## Layout
 
-* `src/gotw_weekly_export/export_and_archive.py` -- the single task behind `gotw_weekly_export` (scheduled Monday 15:00 Pacific/Auckland): compute the just-concluded period, query it directly, write it to a new Google Sheet tab.
+* `src/gotw_weekly_export/export_and_archive.py` -- the single task behind `gotw_weekly_export` (scheduled Monday 16:00 Pacific/Auckland): compute the just-concluded period, query it directly, write it to a new Google Sheet tab.
 * `src/gotw_view_template.sql` -- reference copy of the production view (for history/documentation only; not read by any job).
 * `resources/gotw_jobs.yml` -- the job definition.
 

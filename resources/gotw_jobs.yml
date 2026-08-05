@@ -7,10 +7,13 @@
 # week anymore. This job only archives a snapshot of the leaderboard to Google
 # Sheets for record-keeping -- read-only, non-destructive, so no review gate.
 #
-# Scheduled for 15:00 NZT Monday: the period boundary itself is a fixed
-# 02:00 UTC Monday, which lands at 14:00-15:00 NZT depending on NZ
-# daylight saving -- 15:00 NZT is comfortably after that boundary in both
-# seasons, so results are always final by the time this runs.
+# Scheduled for 16:00 NZT Monday. The period boundary itself is a fixed
+# 02:00 UTC Monday, which lands on a DIFFERENT NZ local time depending on
+# daylight saving: 14:00 NZT under NZST (UTC+12), but 15:00 NZT under NZDT
+# (UTC+13). 16:00 NZT gives a real margin in both seasons (2h / 1h) -- an
+# earlier version of this schedule used 15:00 NZT, which coincides exactly
+# with the boundary during NZDT (zero margin, a real race-condition risk),
+# so don't move this earlier without re-checking both DST states.
 
 resources:
   jobs:
@@ -18,7 +21,7 @@ resources:
       name: gotw-weekly-export
 
       schedule:
-        quartz_cron_expression: "0 0 15 ? * MON"
+        quartz_cron_expression: "0 0 16 ? * MON"
         timezone_id: "Pacific/Auckland"
         pause_status: UNPAUSED
 

@@ -45,9 +45,14 @@ original 2026-08-05 cutover caused zero disruption.
 This project's only remaining job (`gotw_weekly_export`) is a read-only
 Sheets archive with no review gate -- appropriate because it can't affect
 production data or the live leaderboard, unlike the doc's original Job B. It
-runs Monday 15:00 NZT, after the period boundary has already rolled the live
+runs Monday 16:00 NZT, after the period boundary has already rolled the live
 view to the new week, so `export_and_archive.py` re-implements the same
 bets/users join and scoring formula for a fixed, already-concluded window
 instead of reading the (already-rolled-over) view. If the view's filter or
 scoring logic changes, update this job's inline SQL to match, or the archive
 and the live leaderboard will silently disagree.
+
+16:00 NZT (not 15:00) is deliberate: the boundary is a fixed 02:00 UTC, which
+is 14:00 NZT under NZST but 15:00 NZT under NZDT -- scheduling at 15:00 NZT
+would coincide exactly with the boundary during NZDT (zero margin). Don't
+move this schedule earlier without re-checking the margin in both DST states.
