@@ -13,13 +13,22 @@ include:
 
 targets:
   dev:
-    # mode: development pauses schedules/triggers automatically and prefixes
-    # resource names with '[dev <user>]', so deploying here never touches the
-    # real Tuesday schedule. Use this target for every validation run before prod.
+    # mode: development prefixes resource names with '[dev <user>]', but does
+    # NOT auto-pause schedules when the job itself sets pause_status
+    # explicitly (ours does, so prod can be UNPAUSED) -- so this target force-
+    # pauses the schedule itself, or dev and prod would both fire every Monday
+    # and race to write the same-named tab into the same Google Sheet.
     mode: development
     default: true
     workspace:
       host: https://dbc-1a1b8180-343f.cloud.databricks.com
+    resources:
+      jobs:
+        gotw_weekly_export:
+          schedule:
+            quartz_cron_expression: "0 0 15 ? * MON"
+            timezone_id: "Pacific/Auckland"
+            pause_status: PAUSED
   prod:
     mode: production
     workspace:
