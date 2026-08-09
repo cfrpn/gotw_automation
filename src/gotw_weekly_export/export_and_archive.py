@@ -28,10 +28,23 @@ week_label = f"{period_start:%Y-%m-%d}_to_{period_end:%Y-%m-%d}"
 
 # Mirrors the scoring logic in ruby_sweeps._logs.lems_gotw_ongoing_leaderboard
 # (src/gotw_view_template.sql) for a fixed, already-concluded window instead of
-# "current". Keep the filter/scoring logic in sync with that view by hand.
+# "current". Keep the filter/scoring logic in sync with that view by hand --
+# including one-off promo boosts like the one below, or the archive will
+# silently disagree with what the live leaderboard actually showed that week.
+#
+# Weekly Showdown Tournament (see ../../promotions/2026-08-17_weekly_showdown_2x.sql):
+# 2x points 2026-08-16T20:00-2026-08-17T02:00 UTC. Remove this CASE once
+# that week has been archived and the promo is no longer relevant.
 pdf = spark.sql(f"""
     WITH filtered_bets AS (
-        SELECT user_id, bet_amount
+        SELECT
+            user_id,
+            CASE
+                WHEN created_at >= TIMESTAMP'2026-08-16T20:00:00.000'
+                 AND created_at <  TIMESTAMP'2026-08-17T02:00:00.000'
+                THEN bet_amount * 2
+                ELSE bet_amount
+            END AS bet_amount
         FROM ruby_sweeps.bronze.bets
         WHERE created_at >= TIMESTAMP'{period_start:%Y-%m-%d %H:%M:%S}'
           AND created_at < TIMESTAMP'{period_end:%Y-%m-%d %H:%M:%S}'
