@@ -28,6 +28,20 @@ over to the new week.
 Design doc (background/history; the Railway/control-table/review-gate parts
 are superseded by the above): [GOTW Weekly Automation Design](https://docs.google.com/document/d/1zeJvdvnk9XJ5lrsUqyprPD7TvjeBUpekmw0B5GWixFk)
 
+## "Final Six" 2x points rule
+
+Permanent as of 2026-08-21 (per Nina): the last 6 hours of every 7-day period
+are worth double points. It started as a one-off promo for the 2026-08-17
+boundary only (`promotions/2026-08-17_weekly_showdown_2x.sql`), then became a
+standing rule applied every week until Nina says otherwise. Both
+`src/gotw_view_template.sql` and `export_and_archive.py` derive the window
+from `period_end`, so it needs no per-week edits -- unlike the one-off promo,
+there's nothing to remember to revert.
+
+Because `period_end` is a fixed UTC instant, the window is fixed in UTC, not
+NZT: 8am-2pm NZT under NZST, shifting to 9am-3pm NZT once NZDT starts (same
+DST consideration as the archive job schedule above).
+
 ## Layout
 
 * `src/gotw_weekly_export/export_and_archive.py` -- the single task behind `gotw_weekly_export` (scheduled Monday 16:00 Pacific/Auckland): compute the just-concluded period, query it directly, write it to a new Google Sheet tab.

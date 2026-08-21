@@ -15,6 +15,7 @@ from google.oauth2.service_account import Credentials
 # for the previous period rather than reading the (already-rolled-over) view.
 GOTW_EPOCH_START = datetime(2026, 8, 3, 2, 0, 0, tzinfo=timezone.utc)
 GOTW_PERIOD = timedelta(days=7)
+FINAL_SIX = timedelta(hours=6)
 
 def last_completed_period(now):
     weeks_elapsed = (now - GOTW_EPOCH_START) // GOTW_PERIOD
@@ -22,26 +23,30 @@ def last_completed_period(now):
     return current_start - GOTW_PERIOD, current_start
 
 period_start, period_end = last_completed_period(datetime.now(timezone.utc))
+final_six_start = period_end - FINAL_SIX
 week_label = f"{period_start:%Y-%m-%d}_to_{period_end:%Y-%m-%d}"
 
 # COMMAND ----------
 
 # Mirrors the scoring logic in ruby_sweeps._logs.lems_gotw_ongoing_leaderboard
 # (src/gotw_view_template.sql) for a fixed, already-concluded window instead of
-# "current". Keep the filter/scoring logic in sync with that view by hand --
-# including one-off promo boosts like the one below, or the archive will
-# silently disagree with what the live leaderboard actually showed that week.
+# "current". Keep the filter/scoring logic in sync with that view by hand, or
+# the archive will silently disagree with what the live leaderboard actually
+# showed that week.
 #
-# Weekly Showdown Tournament (see ../../promotions/2026-08-17_weekly_showdown_2x.sql):
-# 2x points 2026-08-16T20:00-2026-08-17T02:00 UTC. Remove this CASE once
-# that week has been archived and the promo is no longer relevant.
+# "Final Six" 2x points rule (permanent as of 2026-08-21, per Nina): the last
+# 6 hours of every period are worth double points. Started as a one-off promo
+# for the 2026-08-17 boundary only (see
+# ../../promotions/2026-08-17_weekly_showdown_2x.sql), then made a standing
+# recurring rule -- derived from final_six_start/period_end above, so it
+# applies to every future week with no per-week edits needed.
 pdf = spark.sql(f"""
     WITH filtered_bets AS (
         SELECT
             user_id,
             CASE
-                WHEN created_at >= TIMESTAMP'2026-08-16T20:00:00.000'
-                 AND created_at <  TIMESTAMP'2026-08-17T02:00:00.000'
+                WHEN created_at >= TIMESTAMP'{final_six_start:%Y-%m-%d %H:%M:%S}'
+                 AND created_at <  TIMESTAMP'{period_end:%Y-%m-%d %H:%M:%S}'
                 THEN bet_amount * 2
                 ELSE bet_amount
             END AS bet_amount

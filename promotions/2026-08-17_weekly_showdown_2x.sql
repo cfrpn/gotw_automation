@@ -16,6 +16,13 @@
 --      the plain view in ../src/gotw_view_template.sql. This file is not
 --      applied automatically by any job -- Nina will be reminded to revert
 --      by hand, and there's no cleanup job watching for this.
+--
+-- UPDATE 2026-08-21 (per Nina): this "last 6 hours = 2x" window turned into
+-- a permanent recurring rule ("Final Six"), not a one-off. The production
+-- view and the archive job now compute it every period from period_end --
+-- see ../src/gotw_view_template.sql and
+-- ../src/gotw_weekly_export/export_and_archive.py. This file is kept only
+-- as a historical record of the first (one-off, hardcoded-dates) instance.
 
 CREATE OR REPLACE VIEW ruby_sweeps._logs.lems_gotw_ongoing_leaderboard AS
 WITH period AS (
