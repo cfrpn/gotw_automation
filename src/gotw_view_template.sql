@@ -20,6 +20,12 @@
 -- once NZDT starts (same DST consideration as the archive job schedule --
 -- see AGENTS.md). Keep gotw_weekly_export/export_and_archive.py's inline
 -- SQL in sync with this -- see the comment there.
+--
+-- rn tiebreak (added 2026-08-25): ROW_NUMBER() alone doesn't guarantee a
+-- stable order for tied scores, so two players with an unchanged, identical
+-- score could swap rn between two executions -- which reads as a false
+-- rank-change once lems2.0 starts showing up/down arrows. u.user_id as a
+-- secondary sort key makes ties deterministic without touching scoring.
 
 CREATE OR REPLACE VIEW ruby_sweeps._logs.lems_gotw_ongoing_leaderboard AS
 WITH period AS (
@@ -55,7 +61,7 @@ verified_users AS (
     AND nickname IS NOT NULL
 )
 SELECT
-  ROW_NUMBER() OVER (ORDER BY FLOOR(SUM(b.bet_amount) / 500) DESC) AS rn,
+  ROW_NUMBER() OVER (ORDER BY FLOOR(SUM(b.bet_amount) / 500) DESC, u.user_id ASC) AS rn,
   u.user_id, u.email, u.nickname,
   FLOOR(SUM(b.bet_amount) / 500) AS score
 FROM verified_users u

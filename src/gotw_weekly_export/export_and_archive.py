@@ -32,7 +32,8 @@ week_label = f"{period_start:%Y-%m-%d}_to_{period_end:%Y-%m-%d}"
 # (src/gotw_view_template.sql) for a fixed, already-concluded window instead of
 # "current". Keep the filter/scoring logic in sync with that view by hand, or
 # the archive will silently disagree with what the live leaderboard actually
-# showed that week.
+# showed that week. Includes the same rn tiebreak (u.user_id as secondary
+# sort) added to the view on 2026-08-25 -- keeps ties deterministic.
 #
 # "Final Six" 2x points rule (permanent as of 2026-08-21, per Nina): the last
 # 6 hours of every period are worth double points. Started as a one-off promo
@@ -62,7 +63,7 @@ pdf = spark.sql(f"""
           AND nickname IS NOT NULL
     )
     SELECT
-        ROW_NUMBER() OVER (ORDER BY FLOOR(SUM(b.bet_amount) / 500) DESC) AS rn,
+        ROW_NUMBER() OVER (ORDER BY FLOOR(SUM(b.bet_amount) / 500) DESC, u.user_id ASC) AS rn,
         u.user_id, u.email, u.nickname,
         FLOOR(SUM(b.bet_amount) / 500) AS score
     FROM verified_users u
