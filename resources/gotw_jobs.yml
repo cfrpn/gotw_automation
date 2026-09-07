@@ -7,13 +7,18 @@
 # week anymore. This job only archives a snapshot of the leaderboard to Google
 # Sheets for record-keeping -- read-only, non-destructive, so no review gate.
 #
-# Scheduled for 16:00 NZT Monday. The period boundary itself is a fixed
-# 02:00 UTC Monday, which lands on a DIFFERENT NZ local time depending on
-# daylight saving: 14:00 NZT under NZST (UTC+12), but 15:00 NZT under NZDT
-# (UTC+13). 16:00 NZT gives a real margin in both seasons (2h / 1h) -- an
-# earlier version of this schedule used 15:00 NZT, which coincides exactly
-# with the boundary during NZDT (zero margin, a real race-condition risk),
-# so don't move this earlier without re-checking both DST states.
+# Scheduled for 02:05 UTC Monday -- 5 minutes after the period boundary
+# (a fixed 02:00 UTC). Anchored in UTC rather than NZT on purpose: an
+# earlier version pinned a fixed NZT wall-clock time (16:00), but the
+# boundary's NZT equivalent itself moves with daylight saving (14:00 NZT
+# under NZST, 15:00 NZT under NZDT), so a fixed-NZT schedule gives a
+# different margin each season -- and a fixed 15:00 NZT version coincided
+# exactly with the boundary during NZDT (zero margin, a real race-condition
+# risk: last_completed_period()'s floor division would silently pick the
+# wrong, one-week-stale period if `now` lands even slightly before the true
+# boundary). Anchoring in UTC keeps the 5-minute margin constant in both
+# DST states with no manual re-pinning twice a year. Don't shrink this
+# margin without checking Databricks' actual trigger jitter first.
 
 resources:
   jobs:
@@ -21,8 +26,8 @@ resources:
       name: gotw-weekly-export
 
       schedule:
-        quartz_cron_expression: "0 0 16 ? * MON"
-        timezone_id: "Pacific/Auckland"
+        quartz_cron_expression: "0 5 2 ? * MON"
+        timezone_id: "UTC"
         pause_status: UNPAUSED
 
       email_notifications:

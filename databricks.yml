@@ -26,8 +26,8 @@ targets:
       jobs:
         gotw_weekly_export:
           schedule:
-            quartz_cron_expression: "0 0 16 ? * MON"
-            timezone_id: "Pacific/Auckland"
+            quartz_cron_expression: "0 5 2 ? * MON"
+            timezone_id: "UTC"
             pause_status: PAUSED
   prod:
     mode: production
