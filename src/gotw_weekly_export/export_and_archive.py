@@ -9,7 +9,7 @@ from google.oauth2.service_account import Credentials
 
 # Same anchor as ruby_sweeps._logs.lems_gotw_ongoing_leaderboard's view and
 # lems2.0/server.js's getCurrentPeriod() -- see AGENTS.md. This job is
-# scheduled for shortly after a period boundary (Monday, NZT), so by the time
+# scheduled for shortly after a period boundary (Monday 02:05 UTC), so by the time
 # it runs the live view has already rolled over to the *new* week. To archive
 # the week that just concluded, this queries the underlying tables directly
 # for the previous period rather than reading the (already-rolled-over) view.

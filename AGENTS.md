@@ -45,14 +45,19 @@ original 2026-08-05 cutover caused zero disruption.
 This project's only remaining job (`gotw_weekly_export`) is a read-only
 Sheets archive with no review gate -- appropriate because it can't affect
 production data or the live leaderboard, unlike the doc's original Job B. It
-runs Monday 16:00 NZT, after the period boundary has already rolled the live
+runs Monday 02:05 UTC, after the period boundary has already rolled the live
 view to the new week, so `export_and_archive.py` re-implements the same
 bets/users join and scoring formula for a fixed, already-concluded window
 instead of reading the (already-rolled-over) view. If the view's filter or
 scoring logic changes, update this job's inline SQL to match, or the archive
 and the live leaderboard will silently disagree.
 
-16:00 NZT (not 15:00) is deliberate: the boundary is a fixed 02:00 UTC, which
-is 14:00 NZT under NZST but 15:00 NZT under NZDT -- scheduling at 15:00 NZT
-would coincide exactly with the boundary during NZDT (zero margin). Don't
-move this schedule earlier without re-checking the margin in both DST states.
+The schedule is anchored in UTC (02:05 UTC, 5 minutes after the fixed 02:00
+UTC boundary) on purpose, not in NZT: the boundary's NZT time moves with
+daylight saving (14:00 NZT under NZST, 15:00 NZT under NZDT), so any fixed-NZT
+schedule gets a different margin each season -- an earlier 15:00 NZT version
+coincided exactly with the boundary during NZDT (zero margin), and the 16:00
+NZT version after it still needed re-checking twice a year. In UTC the margin
+is a constant 5 minutes. Don't shrink it without checking Databricks' actual
+trigger jitter: if the job fires even slightly before the boundary,
+`last_completed_period()` silently archives the wrong (one-week-stale) period.

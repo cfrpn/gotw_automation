@@ -16,11 +16,12 @@ formula (kept identical on both sides).
 What's left is much smaller than the original design: a single Databricks Job
 that archives the just-concluded week's leaderboard to Google Sheets, for
 record-keeping. It's read-only and non-destructive, so it needs no human
-review step. It runs Monday 16:00 NZT, safely after the period boundary in
-both NZ daylight-saving states (the boundary is a fixed 02:00 UTC Monday,
-which lands at 14:00 NZT under NZST but 15:00 NZT under NZDT -- an earlier
-draft used 15:00 NZT, which collapses to zero margin during NZDT, so don't
-move this earlier without re-checking both states) -- and queries the
+review step. It runs Monday 02:05 UTC, 5 minutes after the period boundary (a
+fixed 02:00 UTC Monday). The schedule is anchored in UTC rather than NZT
+because the boundary's NZT time shifts with daylight saving (14:00 NZT under
+NZST, 15:00 NZT under NZDT) -- an earlier fixed 15:00 NZT draft collapsed to
+zero margin during NZDT. In UTC the 5-minute margin is constant year-round;
+don't shrink it without checking Databricks' trigger jitter. The job queries the
 underlying bets/users tables directly for that just-concluded window rather
 than reading the live view, since by run time the view has already rolled
 over to the new week.
@@ -44,7 +45,7 @@ DST consideration as the archive job schedule above).
 
 ## Layout
 
-* `src/gotw_weekly_export/export_and_archive.py` -- the single task behind `gotw_weekly_export` (scheduled Monday 16:00 Pacific/Auckland): compute the just-concluded period, query it directly, write it to a new Google Sheet tab.
+* `src/gotw_weekly_export/export_and_archive.py` -- the single task behind `gotw_weekly_export` (scheduled Monday 02:05 UTC): compute the just-concluded period, query it directly, write it to a new Google Sheet tab.
 * `src/gotw_view_template.sql` -- reference copy of the production view (for history/documentation only; not read by any job).
 * `resources/gotw_jobs.yml` -- the job definition.
 
@@ -63,7 +64,7 @@ No new secret scope is required for this project.
 ```
 databricks bundle validate --strict
 databricks bundle deploy --target dev   # schedule stays paused in dev mode
-databricks bundle deploy --target prod  # activates the real Tuesday schedule
+databricks bundle deploy --target prod  # activates the real Monday 02:05 UTC schedule
 ```
 
 ## If the leaderboard window logic ever needs to change
