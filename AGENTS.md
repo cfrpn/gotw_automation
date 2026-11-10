@@ -31,33 +31,41 @@ before assuming the doc's Job A/B/control-table architecture is what's
 deployed -- it isn't.
 
 **The one invariant that matters most**: `ruby_sweeps._logs.lems_gotw_ongoing_leaderboard`
-(Databricks view) and `lems2.0/server.js`'s `getCurrentPeriod()` must always
-compute the identical rolling window from the identical anchor
-(`2026-08-03T02:00:00 UTC`, 7-day period). They're two independent
-implementations of the same formula with no shared code and no coordination
-at runtime -- if one changes without the other, the displayed countdown and
-the actual leaderboard data window silently disagree. If you're asked to
-change the period length or anchor, change both, and verify with a
-side-by-side query (old view's row count/sum/max score vs. the new formula's)
-before replacing the production view -- that comparison is what confirmed the
-original 2026-08-05 cutover caused zero disruption.
+(Databricks view), `lems2.0/server.js`'s `getCurrentPeriod()`, and
+`export_and_archive.py`'s `last_completed_period()` must always compute the
+identical period: **Monday 15:00 to the following Monday 15:00, New Zealand
+local time (`Pacific/Auckland`), fixed year-round** (decided 2026-11-11 --
+"keep NZ time 3pm"). It is NOT a fixed UTC instant: 02:00 UTC under NZDT,
+03:00 UTC under NZST, and the weeks containing an NZ DST change are 169h
+(April) / 167h (September). The US-facing time therefore moves (8pm CST,
+9pm CDT, 10pm CDT depending on both countries' DST), so player-facing copy
+written in CT needs updating when DST changes. Final Six is always the last
+6 hours before `period_end` (Monday 09:00-15:00 NZ).
+
+These are independent implementations with no shared code and no runtime
+coordination -- if one changes without the others, the displayed countdown,
+the live leaderboard window, and the archive silently disagree. If you
+change the boundary, change all three, and verify with a side-by-side query
+(old view's row count/sum/max score vs. the new formula's) before replacing
+the production view. From 2026-08-05 to 2026-11-11 the period was a fixed
+`2026-08-03T02:00:00 UTC` + n x 7 days window; under NZDT that is identical
+to the NZ-local formula, which is what made each cutover zero-disruption.
 
 This project's only remaining job (`gotw_weekly_export`) is a read-only
 Sheets archive with no review gate -- appropriate because it can't affect
 production data or the live leaderboard, unlike the doc's original Job B. It
-runs Monday 02:05 UTC, after the period boundary has already rolled the live
+runs Monday 15:05 NZ local time, after the period boundary has already rolled the live
 view to the new week, so `export_and_archive.py` re-implements the same
 bets/users join and scoring formula for a fixed, already-concluded window
 instead of reading the (already-rolled-over) view. If the view's filter or
 scoring logic changes, update this job's inline SQL to match, or the archive
 and the live leaderboard will silently disagree.
 
-The schedule is anchored in UTC (02:05 UTC, 5 minutes after the fixed 02:00
-UTC boundary) on purpose, not in NZT: the boundary's NZT time moves with
-daylight saving (14:00 NZT under NZST, 15:00 NZT under NZDT), so any fixed-NZT
-schedule gets a different margin each season -- an earlier 15:00 NZT version
-coincided exactly with the boundary during NZDT (zero margin), and the 16:00
-NZT version after it still needed re-checking twice a year. In UTC the margin
-is a constant 5 minutes. Don't shrink it without checking Databricks' actual
-trigger jitter: if the job fires even slightly before the boundary,
-`last_completed_period()` silently archives the wrong (one-week-stale) period.
+The schedule is anchored in NZ local time (15:05 `Pacific/Auckland`, 5
+minutes after the 15:00 NZ boundary) because the boundary itself is in NZ
+local time -- the two move together across DST, so the margin is a constant
+5 minutes. (While the boundary was a fixed 02:00 UTC, the schedule was
+anchored in UTC for the same reason.) Don't shrink the margin without
+checking Databricks' actual trigger jitter: if the job fires even slightly
+before the boundary, `last_completed_period()` silently archives the wrong
+(one-week-stale) period.

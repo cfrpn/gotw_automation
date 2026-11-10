@@ -1,26 +1,39 @@
 # Databricks notebook source
 import ast
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import gspread
 from google.oauth2.service_account import Credentials
 
 # COMMAND ----------
 
-# Same anchor as ruby_sweeps._logs.lems_gotw_ongoing_leaderboard's view and
-# lems2.0/server.js's getCurrentPeriod() -- see AGENTS.md. This job is
-# scheduled for shortly after a period boundary (Monday 02:05 UTC), so by the time
-# it runs the live view has already rolled over to the *new* week. To archive
-# the week that just concluded, this queries the underlying tables directly
-# for the previous period rather than reading the (already-rolled-over) view.
-GOTW_EPOCH_START = datetime(2026, 8, 3, 2, 0, 0, tzinfo=timezone.utc)
-GOTW_PERIOD = timedelta(days=7)
+# Same period as ruby_sweeps._logs.lems_gotw_ongoing_leaderboard's view and
+# lems2.0/server.js's getCurrentPeriod() -- see AGENTS.md: Monday 15:00 to the
+# following Monday 15:00 New Zealand local time, fixed year-round (changed
+# 2026-11-11 from a fixed-UTC 2026-08-03T02:00 + 7-day window). That's 02:00
+# UTC under NZDT, 03:00 UTC under NZST. This job is scheduled for 15:05 NZ
+# local on Mondays, so by the time it runs the live view has already rolled
+# over to the *new* week. To archive the week that just concluded, this
+# queries the underlying tables directly for the previous period rather than
+# reading the (already-rolled-over) view.
+GOTW_TZ = ZoneInfo("Pacific/Auckland")
+GOTW_BOUNDARY = time(15, 0)  # Monday 15:00 NZ local
 FINAL_SIX = timedelta(hours=6)
 
+def _nz_boundary(day):
+    return datetime.combine(day, GOTW_BOUNDARY, GOTW_TZ)
+
 def last_completed_period(now):
-    weeks_elapsed = (now - GOTW_EPOCH_START) // GOTW_PERIOD
-    current_start = GOTW_EPOCH_START + weeks_elapsed * GOTW_PERIOD
-    return current_start - GOTW_PERIOD, current_start
+    local = now.astimezone(GOTW_TZ)
+    monday = local.date() - timedelta(days=local.weekday())
+    current_start = _nz_boundary(monday)
+    if current_start > now:  # Monday before 15:00 NZ: still last week's period
+        current_start = _nz_boundary(monday - timedelta(days=7))
+    previous_start = _nz_boundary(current_start.date() - timedelta(days=7))
+    # Return UTC: the SQL literals below are interpreted in the session
+    # timezone (UTC), and the tab label keeps its historical UTC dates.
+    return previous_start.astimezone(timezone.utc), current_start.astimezone(timezone.utc)
 
 period_start, period_end = last_completed_period(datetime.now(timezone.utc))
 final_six_start = period_end - FINAL_SIX

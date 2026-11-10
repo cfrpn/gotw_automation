@@ -4,27 +4,25 @@ Automation for the weekly GOTW (Game of the Week) leaderboard rollover and
 archiving. Originally scoped (see design doc below) as two chained Databricks
 Jobs plus a Railway API integration to push new start/end times every week.
 
-**That's no longer necessary.** As of 2026-08-05, both
-`ruby_sweeps._logs.lems_gotw_ongoing_leaderboard` (the Databricks view) and
-`lems2.0/server.js` (the Railway-hosted frontend/API) independently compute
-the current 7-day period from the same fixed anchor
-(`2026-08-03T02:00:00 UTC`). The leaderboard window now rolls over
-automatically, forever, with no weekly deploy, no Railway variable updates,
-and no Railway API credentials needed at all. See `AGENTS.md` for the exact
-formula (kept identical on both sides).
+**That's no longer necessary.** Both `ruby_sweeps._logs.lems_gotw_ongoing_leaderboard`
+(the Databricks view) and `lems2.0/server.js` (the Railway-hosted
+frontend/API) independently compute the current period, so the leaderboard
+window rolls over automatically with no weekly deploy and no Railway API
+credentials. Since 2026-11-11 the period runs **Monday 15:00 to Monday 15:00
+New Zealand local time, fixed year-round** (02:00 UTC under NZDT, 03:00 UTC
+under NZST). Before that it was a fixed 02:00 UTC Monday boundary anchored at
+`2026-08-03T02:00:00 UTC`. See `AGENTS.md` for the exact rule (kept identical
+on all sides).
 
 What's left is much smaller than the original design: a single Databricks Job
 that archives the just-concluded week's leaderboard to Google Sheets, for
 record-keeping. It's read-only and non-destructive, so it needs no human
-review step. It runs Monday 02:05 UTC, 5 minutes after the period boundary (a
-fixed 02:00 UTC Monday). The schedule is anchored in UTC rather than NZT
-because the boundary's NZT time shifts with daylight saving (14:00 NZT under
-NZST, 15:00 NZT under NZDT) -- an earlier fixed 15:00 NZT draft collapsed to
-zero margin during NZDT. In UTC the 5-minute margin is constant year-round;
-don't shrink it without checking Databricks' trigger jitter. The job queries the
-underlying bets/users tables directly for that just-concluded window rather
-than reading the live view, since by run time the view has already rolled
-over to the new week.
+review step. It runs Monday 15:05 NZ local time, 5 minutes after the period
+boundary; because both are in NZ local time the margin stays constant across
+daylight saving. Don't shrink it without checking Databricks' trigger jitter.
+The job queries the underlying bets/users tables directly for that
+just-concluded window rather than reading the live view, since by run time
+the view has already rolled over to the new week.
 
 Design doc (background/history; the Railway/control-table/review-gate parts
 are superseded by the above): [GOTW Weekly Automation Design](https://docs.google.com/document/d/1zeJvdvnk9XJ5lrsUqyprPD7TvjeBUpekmw0B5GWixFk)
@@ -39,13 +37,13 @@ standing rule applied every week until Nina says otherwise. Both
 from `period_end`, so it needs no per-week edits -- unlike the one-off promo,
 there's nothing to remember to revert.
 
-Because `period_end` is a fixed UTC instant, the window is fixed in UTC, not
-NZT: 8am-2pm NZT under NZST, shifting to 9am-3pm NZT once NZDT starts (same
-DST consideration as the archive job schedule above).
+Because `period_end` is Monday 15:00 NZ local time (since 2026-11-11), Final
+Six is always Monday 09:00-15:00 NZ local time year-round; its US Central
+time shifts with both countries' daylight saving.
 
 ## Layout
 
-* `src/gotw_weekly_export/export_and_archive.py` -- the single task behind `gotw_weekly_export` (scheduled Monday 02:05 UTC): compute the just-concluded period, query it directly, write it to a new Google Sheet tab.
+* `src/gotw_weekly_export/export_and_archive.py` -- the single task behind `gotw_weekly_export` (scheduled Monday 15:05 NZ local time): compute the just-concluded period, query it directly, write it to a new Google Sheet tab.
 * `src/gotw_view_template.sql` -- reference copy of the production view (for history/documentation only; not read by any job).
 * `resources/gotw_jobs.yml` -- the job definition.
 
@@ -64,19 +62,20 @@ No new secret scope is required for this project.
 ```
 databricks bundle validate --strict
 databricks bundle deploy --target dev   # schedule stays paused in dev mode
-databricks bundle deploy --target prod  # activates the real Monday 02:05 UTC schedule
+databricks bundle deploy --target prod  # activates the real Monday 15:05 NZ schedule
 ```
 
 ## If the leaderboard window logic ever needs to change
 
-Both sides must be updated together and stay byte-identical on the anchor
-timestamp, or the SQL view and the frontend countdown will disagree about
+All three must be updated together and compute the identical boundary, or
+the SQL view, the frontend countdown, and the archive will disagree about
 what "this week" means:
 
 * `ruby_sweeps._logs.lems_gotw_ongoing_leaderboard` -- `CREATE OR REPLACE VIEW`, see `src/gotw_view_template.sql`.
-* `lems2.0/server.js` -- `getCurrentPeriod()` and `GOTW_EPOCH_START`.
+* `lems2.0/server.js` -- `getCurrentPeriod()` (`GOTW_TZ`, `GOTW_BOUNDARY_HOUR`).
+* `src/gotw_weekly_export/export_and_archive.py` -- `last_completed_period()`, plus the job schedule in `resources/gotw_jobs.yml` / `databricks.yml`.
 
-When changing the anchor or period length, first query both the current view
-output and the new formula's output side by side (row count / sum / max score)
-to confirm they match before replacing the production view -- that's what
-caught the Monday-vs-Tuesday discrepancy during the original cutover.
+Before replacing the production view, query both the current view output
+and the new formula's output side by side (row count / sum / max score) to
+confirm they match -- that's what caught the Monday-vs-Tuesday discrepancy
+during the original cutover.

@@ -7,18 +7,16 @@
 # week anymore. This job only archives a snapshot of the leaderboard to Google
 # Sheets for record-keeping -- read-only, non-destructive, so no review gate.
 #
-# Scheduled for 02:05 UTC Monday -- 5 minutes after the period boundary
-# (a fixed 02:00 UTC). Anchored in UTC rather than NZT on purpose: an
-# earlier version pinned a fixed NZT wall-clock time (16:00), but the
-# boundary's NZT equivalent itself moves with daylight saving (14:00 NZT
-# under NZST, 15:00 NZT under NZDT), so a fixed-NZT schedule gives a
-# different margin each season -- and a fixed 15:00 NZT version coincided
-# exactly with the boundary during NZDT (zero margin, a real race-condition
-# risk: last_completed_period()'s floor division would silently pick the
-# wrong, one-week-stale period if `now` lands even slightly before the true
-# boundary). Anchoring in UTC keeps the 5-minute margin constant in both
-# DST states with no manual re-pinning twice a year. Don't shrink this
-# margin without checking Databricks' actual trigger jitter first.
+# Scheduled for 15:05 Monday New Zealand local time -- 5 minutes after the
+# period boundary, which is itself fixed in NZ local time (Monday 15:00
+# Pacific/Auckland, changed 2026-11-11). Because the boundary and the
+# schedule are now in the same timezone, the 5-minute margin is constant
+# year-round across NZ DST changes. (History: while the boundary was a
+# fixed 02:00 UTC, this schedule was anchored in UTC for the same reason --
+# an earlier fixed-NZT schedule had drifted to zero margin under NZDT.)
+# Don't shrink this margin without checking Databricks' actual trigger
+# jitter first: if the job fires even slightly before the boundary,
+# last_completed_period() silently archives the wrong (one-week-stale) period.
 
 resources:
   jobs:
@@ -26,8 +24,8 @@ resources:
       name: gotw-weekly-export
 
       schedule:
-        quartz_cron_expression: "0 5 2 ? * MON"
-        timezone_id: "UTC"
+        quartz_cron_expression: "0 5 15 ? * MON"
+        timezone_id: "Pacific/Auckland"
         pause_status: UNPAUSED
 
       email_notifications:
