@@ -38,6 +38,9 @@
 -- (Databricks SQL default; the old formula's TIMESTAMP literal relied on
 -- the same thing).
 --
+-- After running this, re-grant (CREATE OR REPLACE drops direct grants):
+--   GRANT SELECT ON TABLE ruby_sweeps._logs.lems_gotw_ongoing_leaderboard
+--     TO `c1ca55d1-a2b9-487a-a45c-73e1d0238dc4`;  -- Ruby Loyalty Features (lems2.0 on Railway)
 CREATE OR REPLACE VIEW ruby_sweeps._logs.lems_gotw_ongoing_leaderboard AS
 WITH nz_now AS (
   SELECT from_utc_timestamp(CURRENT_TIMESTAMP(), 'Pacific/Auckland') AS nz_now

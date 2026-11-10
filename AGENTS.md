@@ -51,6 +51,19 @@ the production view. From 2026-08-05 to 2026-11-11 the period was a fixed
 `2026-08-03T02:00:00 UTC` + n x 7 days window; under NZDT that is identical
 to the NZ-local formula, which is what made each cutover zero-disruption.
 
+**Re-grant after replacing the production view.** `CREATE OR REPLACE VIEW`
+drops grants made directly on the view. The live leaderboard (lems2.0 on
+Railway) queries it as the service principal **Ruby Loyalty Features**
+(`c1ca55d1-a2b9-487a-a45c-73e1d0238dc4`), which has only a direct SELECT on
+the view -- not inherited from the catalog/schema. Replacing the view on
+2026-11-11 without re-granting took `/leaderboard` down (HTTP 500,
+INSUFFICIENT_PERMISSIONS) for ~15 minutes. Before replacing, record
+`databricks grants get table ruby_sweeps._logs.lems_gotw_ongoing_leaderboard`;
+right after, re-apply it:
+
+    GRANT SELECT ON TABLE ruby_sweeps._logs.lems_gotw_ongoing_leaderboard
+      TO `c1ca55d1-a2b9-487a-a45c-73e1d0238dc4`;
+
 This project's only remaining job (`gotw_weekly_export`) is a read-only
 Sheets archive with no review gate -- appropriate because it can't affect
 production data or the live leaderboard, unlike the doc's original Job B. It
