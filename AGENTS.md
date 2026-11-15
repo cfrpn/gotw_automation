@@ -64,9 +64,15 @@ right after, re-apply it:
     GRANT SELECT ON TABLE ruby_sweeps._logs.lems_gotw_ongoing_leaderboard
       TO `c1ca55d1-a2b9-487a-a45c-73e1d0238dc4`;
 
-This project's only remaining job (`gotw_weekly_export`) is a read-only
-Sheets archive with no review gate -- appropriate because it can't affect
-production data or the live leaderboard, unlike the doc's original Job B. It
+This project's only remaining job (`gotw_weekly_export`) is an archive with
+no review gate: it appends the concluded week to a Google Sheet tab and, since
+2026-11-16, also writes it to the Delta table
+`manual.temporary.weekly_showdown_leaderboard_history` (one row per player per
+week, no email, idempotent per `period_start` via `replaceWhere`). No review
+gate is appropriate because it can't affect production data or the live
+leaderboard, unlike the doc's original Job B. Both outputs come from the same
+`leaderboard_df`, so the Delta table's scoring must stay in sync with the view
+exactly like the Sheet's does. It
 runs Monday 15:05 NZ local time, after the period boundary has already rolled the live
 view to the new week, so `export_and_archive.py` re-implements the same
 bets/users join and scoring formula for a fixed, already-concluded window

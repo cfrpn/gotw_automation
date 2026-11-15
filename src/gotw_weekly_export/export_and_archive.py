@@ -54,7 +54,7 @@ week_label = f"{period_start:%Y-%m-%d}_to_{period_end:%Y-%m-%d}"
 # ../../promotions/2026-08-17_weekly_showdown_2x.sql), then made a standing
 # recurring rule -- derived from final_six_start/period_end above, so it
 # applies to every future week with no per-week edits needed.
-pdf = spark.sql(f"""
+leaderboard_df = spark.sql(f"""
     WITH filtered_bets AS (
         SELECT
             user_id,
@@ -83,9 +83,61 @@ pdf = spark.sql(f"""
     INNER JOIN filtered_bets b USING (user_id)
     GROUP BY u.user_id, u.email, u.nickname
     ORDER BY score DESC
-""").toPandas()
+""")
+pdf = leaderboard_df.toPandas()
 
 print(f"Exporting {len(pdf)} rows for the period {week_label} (just concluded)")
+
+# COMMAND ----------
+
+# Also persist the concluded week to a Delta table, so past leaderboards can
+# be queried in SQL instead of only living as Google Sheet tabs. Same rows and
+# scoring as the Sheet (it's the same leaderboard_df), so the "keep in sync
+# with the view" rule above covers this too.
+#
+# Deliberately leaves out email: the table is for analysis, and user_id is
+# enough to join back to bronze.users when an email is genuinely needed.
+#
+# Idempotent per period: replaceWhere overwrites only this period's rows, so a
+# retry (max_retries) or a manual re-run never duplicates a week. Runs before
+# the Sheets cell so a Sheets failure doesn't skip it.
+from pyspark.sql import functions as F
+
+HISTORY_TABLE = "manual.temporary.weekly_showdown_leaderboard_history"
+
+spark.sql(f"""
+    CREATE TABLE IF NOT EXISTS {HISTORY_TABLE} (
+        period_start TIMESTAMP COMMENT 'Week start (UTC instant of Monday 15:00 NZ local)',
+        period_end   TIMESTAMP COMMENT 'Week end (UTC instant of the next Monday 15:00 NZ local)',
+        week_label   STRING    COMMENT 'Same label as the Google Sheet tab (UTC dates)',
+        rn           INT       COMMENT 'Final rank (score desc, user_id asc tiebreak)',
+        user_id      STRING,
+        nickname     STRING,
+        score        BIGINT    COMMENT 'FLOOR(sum of SWEEP_TICKETS bets, Final Six 2x) / 500',
+        archived_at  TIMESTAMP COMMENT 'When this row was written by gotw_weekly_export'
+    )
+    COMMENT 'Weekly Showdown (GOTW) final leaderboards, one row per player per week. Written by gotw_automation gotw_weekly_export.'
+""")
+
+period_start_sql = f"{period_start:%Y-%m-%d %H:%M:%S}"
+history_df = leaderboard_df.select(
+    F.to_timestamp(F.lit(period_start_sql)).alias("period_start"),
+    F.to_timestamp(F.lit(f"{period_end:%Y-%m-%d %H:%M:%S}")).alias("period_end"),
+    F.lit(week_label).alias("week_label"),
+    F.col("rn").cast("int").alias("rn"),
+    F.col("user_id").cast("string").alias("user_id"),
+    F.col("nickname").cast("string").alias("nickname"),
+    F.col("score").cast("bigint").alias("score"),
+    F.current_timestamp().alias("archived_at"),
+)
+
+(history_df.write
+    .format("delta")
+    .mode("overwrite")
+    .option("replaceWhere", f"period_start = TIMESTAMP'{period_start_sql}'")
+    .saveAsTable(HISTORY_TABLE))
+
+print(f"Wrote {history_df.count()} rows for {week_label} to {HISTORY_TABLE}")
 
 # COMMAND ----------
 

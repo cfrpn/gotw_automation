@@ -43,7 +43,7 @@ time shifts with both countries' daylight saving.
 
 ## Layout
 
-* `src/gotw_weekly_export/export_and_archive.py` -- the single task behind `gotw_weekly_export` (scheduled Monday 15:05 NZ local time): compute the just-concluded period, query it directly, write it to a new Google Sheet tab.
+* `src/gotw_weekly_export/export_and_archive.py` -- the single task behind `gotw_weekly_export` (scheduled Monday 15:05 NZ local time): compute the just-concluded period, query it directly, write it to the Delta table `manual.temporary.weekly_showdown_leaderboard_history` (since 2026-11-16; idempotent per week, no email column) and to a new Google Sheet tab. The table's scoring comes from the same query as the Sheet, so it must stay in sync with the view too.
 * `src/gotw_view_template.sql` -- reference copy of the production view (for history/documentation only; not read by any job).
 * `resources/gotw_jobs.yml` -- the job definition.
 
