@@ -84,6 +84,7 @@ verified_users AS (
   FROM ruby_sweeps.bronze.users
   WHERE sumsub_purchase_verified = 'true'
     AND nickname IS NOT NULL
+    AND COALESCE(type, 'user') <> 'staff'   -- staff are not eligible (2026-11-16)
 )
 SELECT
   ROW_NUMBER() OVER (ORDER BY FLOOR(SUM(b.bet_amount) / 500) DESC, u.user_id ASC) AS rn,
