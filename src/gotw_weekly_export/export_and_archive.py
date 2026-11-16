@@ -105,30 +105,31 @@ from pyspark.sql import functions as F
 
 HISTORY_TABLE = "manual.temporary.weekly_showdown_leaderboard_history"
 
+# Schema must match the existing table exactly (created 2026-11-15 with the
+# 2026-08-03..11-09 backfill): no week_label, and the write timestamp is
+# loaded_at. A mismatch makes the replaceWhere write fail, and because this
+# cell runs before the Sheets cell, the Sheet tab would be skipped too.
 spark.sql(f"""
     CREATE TABLE IF NOT EXISTS {HISTORY_TABLE} (
-        period_start TIMESTAMP COMMENT 'Week start (UTC instant of Monday 15:00 NZ local)',
-        period_end   TIMESTAMP COMMENT 'Week end (UTC instant of the next Monday 15:00 NZ local)',
-        week_label   STRING    COMMENT 'Same label as the Google Sheet tab (UTC dates)',
-        rn           INT       COMMENT 'Final rank (score desc, user_id asc tiebreak)',
-        user_id      STRING,
-        nickname     STRING,
-        score        BIGINT    COMMENT 'FLOOR(sum of SWEEP_TICKETS bets, Final Six 2x) / 500',
-        archived_at  TIMESTAMP COMMENT 'When this row was written by gotw_weekly_export'
+        period_start TIMESTAMP COMMENT 'Start of the Weekly Showdown period (UTC)',
+        period_end   TIMESTAMP COMMENT 'End of the Weekly Showdown period (UTC)',
+        rn           INT       COMMENT 'Final leaderboard position (1 = top)',
+        user_id      STRING    COMMENT 'Ruby Sweeps user id',
+        nickname     STRING    COMMENT 'In-app nickname shown on the leaderboard',
+        score        BIGINT    COMMENT 'Leaderboard points: FLOOR(SUM(bet_amount, Final Six 2x) / 500)',
+        loaded_at    TIMESTAMP COMMENT 'When this row was written'
     )
-    COMMENT 'Weekly Showdown (GOTW) final leaderboards, one row per player per week. Written by gotw_automation gotw_weekly_export.'
 """)
 
 period_start_sql = f"{period_start:%Y-%m-%d %H:%M:%S}"
 history_df = leaderboard_df.select(
     F.to_timestamp(F.lit(period_start_sql)).alias("period_start"),
     F.to_timestamp(F.lit(f"{period_end:%Y-%m-%d %H:%M:%S}")).alias("period_end"),
-    F.lit(week_label).alias("week_label"),
     F.col("rn").cast("int").alias("rn"),
     F.col("user_id").cast("string").alias("user_id"),
     F.col("nickname").cast("string").alias("nickname"),
     F.col("score").cast("bigint").alias("score"),
-    F.current_timestamp().alias("archived_at"),
+    F.current_timestamp().alias("loaded_at"),
 )
 
 (history_df.write
