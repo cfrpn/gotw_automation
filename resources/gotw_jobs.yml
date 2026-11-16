@@ -7,16 +7,22 @@
 # week anymore. This job only archives a snapshot of the leaderboard to Google
 # Sheets for record-keeping -- read-only, non-destructive, so no review gate.
 #
-# Scheduled for 15:05 Monday New Zealand local time -- 5 minutes after the
+# Scheduled for 15:20 Monday New Zealand local time -- 20 minutes after the
 # period boundary, which is itself fixed in NZ local time (Monday 15:00
 # Pacific/Auckland, changed 2026-11-11). Because the boundary and the
-# schedule are now in the same timezone, the 5-minute margin is constant
-# year-round across NZ DST changes. (History: while the boundary was a
-# fixed 02:00 UTC, this schedule was anchored in UTC for the same reason --
-# an earlier fixed-NZT schedule had drifted to zero margin under NZDT.)
-# Don't shrink this margin without checking Databricks' actual trigger
-# jitter first: if the job fires even slightly before the boundary,
-# last_completed_period() silently archives the wrong (one-week-stale) period.
+# schedule are in the same timezone, the margin is constant year-round
+# across NZ DST changes.
+#
+# Why 20 minutes and not 5 (changed 2026-11-16): bets reach bronze.bets
+# about 10 minutes after they're placed, and the archive is the official
+# final result, so it must include every bet up to the boundary (the last
+# hours are Final Six at double points). The script also waits until bets
+# placed after the boundary have landed before writing anything, and fails
+# instead of archiving an incomplete week. Marketing pays prizes from the
+# Sheet after this has run.
+#
+# Never schedule this before the boundary: last_completed_period() would
+# silently archive the wrong (one-week-stale) period.
 
 resources:
   jobs:
@@ -24,7 +30,7 @@ resources:
       name: gotw-weekly-export
 
       schedule:
-        quartz_cron_expression: "0 5 15 ? * MON"
+        quartz_cron_expression: "0 20 15 ? * MON"
         timezone_id: "Pacific/Auckland"
         pause_status: UNPAUSED
 
