@@ -113,6 +113,10 @@ leaderboard_df = spark.sql(f"""
         WHERE sumsub_purchase_verified = 'true'
           AND nickname IS NOT NULL
           AND COALESCE(type, 'user') <> 'staff'   -- staff are not eligible (2026-11-16)
+          AND user_id NOT IN (   -- Sweepers are not eligible (2026-11-17); live tier, refreshed hourly
+            SELECT user_id FROM ruby_sweeps.gold.player_tiers_statuses
+            WHERE current_tier = 'Sweeper' AND user_id IS NOT NULL
+          )
     )
     SELECT
         ROW_NUMBER() OVER (ORDER BY FLOOR(SUM(b.bet_amount) / 500) DESC, u.user_id ASC) AS rn,
