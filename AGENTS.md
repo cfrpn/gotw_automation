@@ -73,18 +73,22 @@ gate is appropriate because it can't affect production data or the live
 leaderboard, unlike the doc's original Job B. Both outputs come from the same
 `leaderboard_df`, so the Delta table's scoring must stay in sync with the view
 exactly like the Sheet's does. It
-runs Monday 15:05 NZ local time, after the period boundary has already rolled the live
+runs Monday 15:20 NZ local time, after the period boundary has already rolled the live
 view to the new week, so `export_and_archive.py` re-implements the same
 bets/users join and scoring formula for a fixed, already-concluded window
 instead of reading the (already-rolled-over) view. If the view's filter or
 scoring logic changes, update this job's inline SQL to match, or the archive
 and the live leaderboard will silently disagree.
 
-The schedule is anchored in NZ local time (15:05 `Pacific/Auckland`, 5
+The schedule is anchored in NZ local time (15:20 `Pacific/Auckland`, 20
 minutes after the 15:00 NZ boundary) because the boundary itself is in NZ
-local time -- the two move together across DST, so the margin is a constant
-5 minutes. (While the boundary was a fixed 02:00 UTC, the schedule was
-anchored in UTC for the same reason.) Don't shrink the margin without
-checking Databricks' actual trigger jitter: if the job fires even slightly
-before the boundary, `last_completed_period()` silently archives the wrong
-(one-week-stale) period.
+local time -- the two move together across DST, so the margin is constant.
+It was 15:05 until 2026-11-16, when Nina decided the archive must include
+every bet in the week: bets reach `bronze.bets` about 10 minutes after
+they're placed, so a 5-minute margin dropped late Final Six bets (double
+points) and could change prize places. The script also waits until bets
+placed after `period_end` have landed before writing anything (polls for up
+to 40 minutes, then fails and emails Nina rather than archive an incomplete
+week). Marketing pays prizes from the Sheet, so they pay after this has run.
+Never schedule it before the boundary: `last_completed_period()` would
+silently archive the wrong (one-week-stale) period.

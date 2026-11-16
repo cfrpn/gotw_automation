@@ -17,7 +17,7 @@ on all sides).
 What's left is much smaller than the original design: a single Databricks Job
 that archives the just-concluded week's leaderboard to Google Sheets, for
 record-keeping. It's read-only and non-destructive, so it needs no human
-review step. It runs Monday 15:05 NZ local time, 5 minutes after the period
+review step. It runs Monday 15:20 NZ local time, 20 minutes after the period
 boundary; because both are in NZ local time the margin stays constant across
 daylight saving. Don't shrink it without checking Databricks' trigger jitter.
 The job queries the underlying bets/users tables directly for that
@@ -43,7 +43,7 @@ time shifts with both countries' daylight saving.
 
 ## Layout
 
-* `src/gotw_weekly_export/export_and_archive.py` -- the single task behind `gotw_weekly_export` (scheduled Monday 15:05 NZ local time): compute the just-concluded period, query it directly, write it to the Delta table `manual.temporary.weekly_showdown_leaderboard_history` (since 2026-11-16; idempotent per week, no email column) and to a new Google Sheet tab. The table's scoring comes from the same query as the Sheet, so it must stay in sync with the view too.
+* `src/gotw_weekly_export/export_and_archive.py` -- the single task behind `gotw_weekly_export` (scheduled Monday 15:20 NZ local time; waits until bets are complete before writing): compute the just-concluded period, query it directly, write it to the Delta table `manual.temporary.weekly_showdown_leaderboard_history` (since 2026-11-16; idempotent per week, no email column) and to a new Google Sheet tab. The table's scoring comes from the same query as the Sheet, so it must stay in sync with the view too.
 * `src/gotw_view_template.sql` -- reference copy of the production view (for history/documentation only; not read by any job).
 * `resources/gotw_jobs.yml` -- the job definition.
 
@@ -62,7 +62,7 @@ No new secret scope is required for this project.
 ```
 databricks bundle validate --strict
 databricks bundle deploy --target dev   # schedule stays paused in dev mode
-databricks bundle deploy --target prod  # activates the real Monday 15:05 NZ schedule
+databricks bundle deploy --target prod  # activates the real Monday 15:20 NZ schedule
 ```
 
 ## If the leaderboard window logic ever needs to change
