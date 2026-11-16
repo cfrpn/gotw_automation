@@ -60,8 +60,11 @@ SELECT
   COALESCE(pp.prize_paid, 0)  AS prize_paid,
   COALESCE(pp.spot_paid, 0)   AS spot_paid,
   pp.payout_notes, pp.first_paid_at,
+  COALESCE(su.type, 'user') = 'staff' AS is_staff,
   CASE
     WHEN COALESCE(z.emeralds,0) = 0 AND COALESCE(pp.prize_paid,0) = 0 THEN 'no prize'
+    -- Staff were on the board until 2026-11-16 but were never eligible for prizes.
+    WHEN COALESCE(su.type, 'user') = 'staff' AND COALESCE(pp.prize_paid,0) = 0 THEN 'staff - not eligible'
     WHEN COALESCE(z.emeralds,0) = COALESCE(pp.prize_paid,0)            THEN 'paid OK'
     WHEN COALESCE(pp.prize_paid,0) = 0 AND l.period_end + INTERVAL 7 DAYS > current_timestamp() THEN 'not paid yet'
     WHEN COALESCE(pp.prize_paid,0) = 0                                  THEN 'MISSING payout'
@@ -71,3 +74,4 @@ SELECT
 FROM lb l
 LEFT JOIN prize z ON z.period_end = l.period_end AND z.rn = l.rn
 FULL OUTER JOIN paid pp ON pp.period_end = l.period_end AND pp.user_id = l.user_id
+LEFT JOIN ruby_sweeps.bronze.users su ON su.user_id = COALESCE(l.user_id, pp.user_id)
