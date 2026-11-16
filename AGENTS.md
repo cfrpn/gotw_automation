@@ -61,6 +61,17 @@ the production view. From 2026-08-05 to 2026-11-11 the period was a fixed
 `2026-08-03T02:00:00 UTC` + n x 7 days window; under NZDT that is identical
 to the NZ-local formula, which is what made each cutover zero-disruption.
 
+**Eligibility filters (keep identical in the view, the template and the archive job):**
+Sumsub-verified, has a nickname, not staff (`bronze.users.type = 'staff'`, from
+2026-11-16), and not a Sweeper (`gold.player_tiers_statuses.current_tier =
+'Sweeper'`, from 2026-11-17). The Sweeper check uses the **live** tier: that
+table is rebuilt every hour with current state only, so a player can drop off or
+reappear mid-week (Nina accepted this). The archive applies the tier as of its
+own run (~15:20 NZ), which can differ from the board at 15:00 if a tier flips in
+between. Past weeks are not re-ranked. The view reads the tier table with the
+view owner's rights, so the Railway service principal needs no extra grant, but
+if that table is ever dropped or renamed the live leaderboard will fail.
+
 **Re-grant after replacing the production view.** `CREATE OR REPLACE VIEW`
 drops grants made directly on the view. The live leaderboard (lems2.0 on
 Railway) queries it as the service principal **Ruby Loyalty Features**
