@@ -22,6 +22,16 @@ If the CLI is not installed, see: https://docs.databricks.com/dev-tools/cli/inst
 
 ## Project Instructions
 
+> **Naming:** the activity is now called **Marketing Tournament – Weekly Showdown**
+> (formerly GOTW / Game of the Week). Use that name in anything people see:
+> emails, dashboards, docs. Internal identifiers keep the old `gotw` name on purpose:
+> the live view `ruby_sweeps._logs.lems_gotw_ongoing_leaderboard` (lems2.0 on
+> Railway queries it by name, and its service-principal grant is on that name),
+> the job `gotw-weekly-export` / bundle key `gotw_weekly_export` (renaming the key
+> makes the bundle delete and recreate the job), and this repo. Don't rename them
+> for cosmetics.
+
+
 GOTW weekly leaderboard rollover + archiving. Background/history is the design
 doc linked in README.md, but its core mechanism (Job A generates a SQL/Railway
 variable draft, a human reviews it, Job B applies it via the Railway API) is

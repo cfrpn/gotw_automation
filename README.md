@@ -1,5 +1,15 @@
 # gotw_automation
 
+> **Naming:** the activity is now called **Marketing Tournament – Weekly Showdown**
+> (formerly GOTW / Game of the Week). Use that name in anything people see:
+> emails, dashboards, docs. Internal identifiers keep the old `gotw` name on purpose:
+> the live view `ruby_sweeps._logs.lems_gotw_ongoing_leaderboard` (lems2.0 on
+> Railway queries it by name, and its service-principal grant is on that name),
+> the job `gotw-weekly-export` / bundle key `gotw_weekly_export` (renaming the key
+> makes the bundle delete and recreate the job), and this repo. Don't rename them
+> for cosmetics.
+
+
 Automation for the weekly GOTW (Game of the Week) leaderboard rollover and
 archiving. Originally scoped (see design doc below) as two chained Databricks
 Jobs plus a Railway API integration to push new start/end times every week.
